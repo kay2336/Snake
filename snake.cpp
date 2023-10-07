@@ -232,7 +232,7 @@ int snakeDie()
 {
 	// ×²Ç½
 	if (snake.xy[0].x > 640 || snake.xy[0].x < 0
-		|| snake.xy[0].y > 480 || snake.xy[0].x < 0)
+		|| snake.xy[0].y > 400 || snake.xy[0].x < 0)
 	{
 		MessageBox(hwnd, _T("ÔÓÓã~ÔÓÓã"), _T("Ğ¡¹í"), MB_OK);
 		return 1;
