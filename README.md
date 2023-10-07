@@ -1,2 +1,2 @@
 # Snake
-updating:)
+can play at least:)
