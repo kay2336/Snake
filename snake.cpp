@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <conio.h>
 #include <graphics.h>
+#include <time.h>
 
 // 坐标属性
 typedef struct pointXY
@@ -24,7 +25,7 @@ struct food
 	MYPOINT fdxy;	 // 食物的坐标
 	int eatgrade;	 // 吃了食物有多少分
 	int flag;		 // 食物是否存在
-};
+}food;
 
 // 主窗口
 HWND hwnd = NULL;
@@ -32,16 +33,16 @@ HWND hwnd = NULL;
 // 枚举方向（小键盘，键码值）
 enum movPostion { right=77, left=75, down=80, up=72 };
 
-
 /***********************************************
-*			初始化蛇：  initSnake
-*			画蛇：	    drawSnake
-*			移动蛇：    moveSnake
-*			按键控制：  keyDown
-*           初始化食物：initFood
-*			画食物：	drawFood
-*			吃食物：	eatFood
-*			
+*			初始化蛇：     initSnake
+*			画蛇：	       drawSnake
+*			移动蛇：       moveSnake
+*			按键控制：     keyDown
+*           初始化食物：   initFood
+*			画食物：	   drawFood
+*			吃食物：	   eatFood
+*			蛇撞墙撞自己： snakeDie
+*			暂停：		   pauseMoment
 ************************************************/
 void initSnake();
 void drawSnake();
@@ -50,9 +51,14 @@ void keyDown();
 void initFood();
 void drawFood();
 void eatFood();
+int snakeDie();
+void showGrade();
+void pauseMoment();
 
+// 主函数
 int main()
 { 
+	srand((unsigned int)time(NULL));
 	hwnd = initgraph(640, 400);
 	setbkcolor(WHITE);
 	cleardevice();
@@ -62,23 +68,23 @@ int main()
 	while (1)
 	{
 		cleardevice();
+
+		showGrade();
+		
+		// 调换eat和draw的顺序会导致每次吃一个食物，左上角就闪一下食物 ?
+		drawFood();
 		drawSnake();
+		if (snakeDie() == 1)
+			break;
+		if (food.flag == 0)
+			initFood();
+		eatFood();
 		moveSnake();
 
-		//只有在有按键按下的时候才接收按键，蛇要一直动
+		// 只有在有按键按下的时候才接收按键，蛇要一直动
 		keyDown();
-
 		Sleep(100);
 	}
-
-	//while (1)
-	//{
-	//	printf("\n");
-	//	int ch = _getch();
-	//	printf("%d\n", ch);
-	//	ch = _getch();
-	//	printf("%d\n", ch);
-	//}
 	
 	getchar();   //防止闪屏捏
 	closegraph();
@@ -102,11 +108,9 @@ void drawSnake()
 {
 	for (int i = 0; i < snake.num; i++)
 	{
-		// 黑色边框矩形
 		setlinecolor(BLACK);
-		// 内填充绿色矩形
 		setfillcolor(GREEN);
-		// 画矩形
+		//setfillcolor(RGB(rand()%255, rand() % 255, rand() % 255));
 		fillrectangle(snake.xy[i].x, snake.xy[i].y, snake.xy[i].x+10, snake.xy[i].y+10);
 	}
 }
@@ -120,7 +124,6 @@ void moveSnake()
 		snake.xy[i].x = snake.xy[i - 1].x;
 		snake.xy[i].y = snake.xy[i - 1].y;
 	}
-	printf("move: %d\n", snake.postion);
 	// 特判第一节
 	switch (snake.postion)
 	{
@@ -141,7 +144,7 @@ void moveSnake()
 	}
 }
 
-// 按键读取出大问题
+// 调整窗口（两个窗口有点反人类）
 void keyDown()
 {
 	// 编译器的问题捏，可能是不支持了
@@ -150,6 +153,7 @@ void keyDown()
 	int userKey;
 	while (_kbhit())
 	{
+		pauseMoment();
 		userKey = _getch();
 		switch (userKey)
 		{
@@ -184,13 +188,90 @@ void keyDown()
 	}
 }
 
+// 随机生成食物
+void initFood()
+{
+	food.fdxy.x = rand() % 64 * 10;
+	food.fdxy.y = rand() % 40 * 10;
+	food.flag = 1;
 
+	// 如果食物在蛇身上, 则重新产生
+	for (int i = 0; i < snake.num; i++)
+	{
+		if (food.fdxy.x == snake.xy[i].x && food.fdxy.y == snake.xy[i].y)
+		{
+			food.fdxy.x = rand() % 64 * 10;
+			food.fdxy.y = rand() % 40 * 10;
+			i = 0;
+		}
+	}
+}
 
+// 画食物
+void drawFood()
+{
+	setfillcolor(GREEN);
+	fillrectangle(food.fdxy.x, food.fdxy.y, food.fdxy.x+10, food.fdxy.y+10);
+}
 
+// 吃食物
+void eatFood()
+{
+	if (food.fdxy.x == snake.xy[0].x && food.fdxy.y == snake.xy[0].y)
+	{
+		snake.num++;
+		food.eatgrade += 10;
+		food.flag = 0;
+	}
+}
 
+// 蛇撞墙或者撞自己
+// 0: 继续
+// 1: 输了
+int snakeDie()
+{
+	// 撞墙
+	if (snake.xy[0].x > 640 || snake.xy[0].x < 0
+		|| snake.xy[0].y > 480 || snake.xy[0].x < 0)
+	{
+		MessageBox(hwnd, _T("杂鱼~杂鱼"), _T("小鬼"), MB_OK);
+		return 1;
+	}
 
+	// 撞自己
+	for (int i = 1; i < snake.num; i++)
+	{
+		if (snake.xy[0].x == snake.xy[i].x
+			&& snake.xy[0].y == snake.xy[i].y)
+		{
+			MessageBox(hwnd, _T("杂鱼~杂鱼"), _T("大鬼"), MB_OK);
+			return 1;
+		}
+	}
+	return 0;
+}
 
+// 显示分数
+void showGrade()
+{
+	// https://blog.csdn.net/weixin_72549244/article/details/130038932
+	TCHAR grade[100];
+	_stprintf_s(grade, _T("%d"), food.eatgrade);
+	setbkmode(TRANSPARENT);
+	settextcolor(LIGHTBLUE);
+	outtextxy(570, 20, _T("分数："));
+	outtextxy(610, 20, grade);
 
+}
+
+// 暂停
+void pauseMoment()
+{
+	if (_getch() == 32)
+	{
+		while (_getch() != 32);
+	}
+}
 
 
 
